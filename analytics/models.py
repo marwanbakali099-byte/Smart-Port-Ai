@@ -1,5 +1,7 @@
 from django.db import models
 from ports.models import Port
+from django.contrib.gis.db import models
+
 
 class PortMetrics(models.Model):
 

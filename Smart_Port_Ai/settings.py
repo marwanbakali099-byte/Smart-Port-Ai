@@ -21,7 +21,10 @@ os.environ['PATH'] = os.path.join(OSGEO4W_ROOT, 'bin') + os.pathsep + os.environ
 if os.path.exists(os.path.join(OSGEO4W_ROOT, 'bin')):
     os.add_dll_directory(os.path.join(OSGEO4W_ROOT, 'bin'))
 
-GDAL_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'gdal312.dll') 
+# IMPORTANT 🔥
+os.environ['PROJ_LIB'] = os.path.join(OSGEO4W_ROOT, 'share', 'proj')
+
+GDAL_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'gdal312.dll')
 GEOS_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'geos_c.dll')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
