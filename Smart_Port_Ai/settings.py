@@ -12,6 +12,18 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import os
+
+OSGEO4W_ROOT = r'C:\Users\ACER\AppData\Local\Programs\OSGeo4W'
+
+os.environ['PATH'] = os.path.join(OSGEO4W_ROOT, 'bin') + os.pathsep + os.environ['PATH']
+
+if os.path.exists(os.path.join(OSGEO4W_ROOT, 'bin')):
+    os.add_dll_directory(os.path.join(OSGEO4W_ROOT, 'bin'))
+
+GDAL_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'gdal312.dll') 
+GEOS_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'geos_c.dll')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,6 +49,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
+    'rest_framework',
+    'rest_framework_gis',
+    'ais.apps.AisConfig',
+    'bateaux.apps.BateauxConfig',
+    'ports.apps.PortsConfig',
+    'detection.apps.DetectionConfig',
+    'satellite.apps.SatelliteConfig',
+    'analytics.apps.AnalyticsConfig',
+    'dashbord.apps.DashbordConfig',
+    'events.apps.EventsConfig',
+    
+    
 ]
 
 MIDDLEWARE = [
@@ -74,8 +99,12 @@ WSGI_APPLICATION = 'Smart_Port_Ai.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'smart_port_db',
+        'USER': 'postgres',
+        'PASSWORD':'6252',
+        'HOST': 'localhost',
+        'PORT': '5432'
     }
 }
 

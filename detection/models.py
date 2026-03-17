@@ -1,3 +1,38 @@
-from django.db import models
+from django.contrib.gis.db import models
+from bateaux.models import Boat
 
-# Create your models here.
+class Detection(models.Model):
+
+    SOURCE_CHOICES = [
+        ('camera', 'Camera'),
+        ('ais', 'AIS'),
+        ('satellite', 'Satellite')
+    ]
+
+    boat = models.ForeignKey(
+        Boat,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES
+    )
+
+    location = models.PointField()
+
+    confidence = models.FloatField(
+        null=True,
+        blank=True
+    )
+
+    timestamp = models.DateTimeField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.source} detection"
