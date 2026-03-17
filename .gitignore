@@ -1,0 +1,45 @@
+# Dossiers de l'environnement virtuel (venv)
+Lib/
+Scripts/
+pyvenv.cfg
+Include/
+
+### Python / Django ###
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+db.sqlite3
+db.sqlite3-journal
+media/
+static/
+staticfiles/
+
+### Environnement Virtuel (venv) ###
+# À adapter selon le nom de votre dossier (ex: .venv, env, venv)
+venv/
+env/
+.venv/
+ENV/
+
+### GeoDjango / GIS spécifiques ###
+# Fichiers de log ou de dump liés à PostGIS / GDAL
+*.log
+geodjango.log
+.python_history
+
+### IDE / Éditeurs ###
+.vscode/
+.idea/
+*.swp
+*.swo
+
+### OS / Système ###
+.DS_Store
+Thumbs.db
+
+### Distribution / Paquets ###
+dist/
+build/
+*.egg-info/
+
