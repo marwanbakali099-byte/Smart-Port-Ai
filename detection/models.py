@@ -16,12 +16,14 @@ class Detection(models.Model):
         blank=True
     )
 
+    mmsi = models.CharField(max_length=20, null=True, blank=True)
+
     source = models.CharField(
         max_length=20,
         choices=SOURCE_CHOICES
     )
 
-    location = models.PointField()
+    location = models.PointField(spatial_index=True)
 
     confidence = models.FloatField(
         null=True,
