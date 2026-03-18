@@ -9,7 +9,8 @@ API_KEY = "257d535f8f35d805b11cbec507de61212ccd4508"
 URL_DJANGO = "http://127.0.0.1:8000/api/detections/"
 
 async def connecter_ais_stream():
-    zone_tanger = [[34.0, -7.5], [37.0, -4.5]]
+    # zone_tanger = [[34.0, -7.5], [37.0, -4.5]]
+    zone_tanger = [[35.800, -5.900], [35.950, -5.300]]
 
     while True:
         try:
@@ -40,6 +41,15 @@ async def connecter_ais_stream():
                     
                     if msg_type == "PositionReport":
                         vitesse = data.get("Message", {}).get("PositionReport", {}).get("Sog", 0.0)
+
+                    # vitesse intelligente selon type
+                    if not vitesse or vitesse <= 0:
+                        if ship_type in [60, 70, 80]:  # cargo / tanker
+                            vitesse = 12.0
+                        elif ship_type == 30:  # fishing
+                            vitesse = 8.0
+                        else:
+                            vitesse = 6.0
 
                     if lat and lon and mmsi:
                         payload = {

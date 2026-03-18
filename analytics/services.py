@@ -13,7 +13,8 @@ def count_boats_in_port(port_id):
 
     for boat in Boat.objects.all():
 
-        last_detection = boat.detection_set.order_by('-timestamp').first()
+        # last_detection = boat.detection_set.order_by('-timestamp').first()
+        last_detection = boat.positions.order_by('-timestamp').first()
 
         if last_detection and port.boundary.contains(last_detection.location):
             boats_in_port += 1

@@ -1,50 +1,24 @@
 from ports.models import Port
 from .models import PortEvent
+from ports.utils import get_port_from_position
 
 def check_entry_exit(boat, new_detection):
+    # On récupère le port où se trouve le bateau MAINTENANT
+    current_port = get_port_from_position(new_detection.location.y, new_detection.location.x)
+    
+    # On récupère sa position PRÉCÉDENTE
+    last_detection = boat.positions.exclude(id=new_detection.id).order_by('-timestamp').first()
+    if not last_detection: return
+    
+    # On regarde si avant il était dans un port
+    previous_port = get_port_from_position(last_detection.location.y, last_detection.location.x)
 
-    port = Port.objects.first()
-    if not port:
-        return
+    # LOGIQUE D'ENTRÉE
+    if not previous_port and current_port:
+        PortEvent.objects.create(boat=boat, port=current_port, event_type="entry", timestamp=new_detection.timestamp)
+        print(f"✅ {boat.mmsi} est entré à {current_port.name}")
 
-    last_detection = boat.detection_set.exclude(
-        id=new_detection.id
-    ).order_by('-timestamp').first()
-
-    if not last_detection:
-        return
-
-    was_inside_before = port.boundary.contains(last_detection.location)
-    is_inside_now = port.boundary.contains(new_detection.location)
-
-    last_event = PortEvent.objects.filter(boat=boat).order_by('-timestamp').first()
-
-    # ENTRY
-    if not was_inside_before and is_inside_now:
-
-        if last_event and last_event.event_type == "entry":
-            return
-
-        PortEvent.objects.create(
-            boat=boat,
-            port=port,
-            event_type="entry",
-            timestamp=new_detection.timestamp
-        )
-
-        print(f"{boat.mmsi} ✅ ENTRY detected")
-
-    # EXIT
-    elif was_inside_before and not is_inside_now:
-
-        if last_event and last_event.event_type == "exit":
-            return
-
-        PortEvent.objects.create(
-            boat=boat,
-            port=port,
-            event_type="exit",
-            timestamp=new_detection.timestamp
-        )
-
-        print(f"{boat.mmsi} 🚪 EXIT detected")
+    # LOGIQUE DE SORTIE
+    elif previous_port and not current_port:
+        PortEvent.objects.create(boat=boat, port=previous_port, event_type="exit", timestamp=new_detection.timestamp)
+        print(f"🚪 {boat.mmsi} a quitté {previous_port.name}")

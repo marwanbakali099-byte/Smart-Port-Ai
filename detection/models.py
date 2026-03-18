@@ -10,3 +10,4 @@ class Detection(models.Model):
     speed = models.FloatField(default=0.0) # Feature indispensable (13.2% d'importance)
     timestamp = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    eta_minutes = models.FloatField(null=True, blank=True)

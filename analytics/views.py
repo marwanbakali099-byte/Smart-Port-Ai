@@ -1,5 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
+from .port_service import get_avg_eta, get_boats_in_port, get_congestion
 from .services import compute_congestion
 from bateaux.models import Boat
 from .eta_service import predict_eta_for_boat
@@ -54,3 +56,17 @@ class BoatETAView(APIView):
 
         except Boat.DoesNotExist:
             return Response({"error": "Bateau non trouvé"}, status=404)
+        
+class PortStatusView(APIView):
+    def get(self, request, port_id):
+        boats = get_boats_in_port(port_id)
+        count = len(boats)
+        avg_eta = get_avg_eta(boats)
+
+        return Response({
+            "port_id": port_id,
+            "boats_in_port": count,
+            "boats": [b.mmsi for b in boats],
+            "avg_eta_minutes": avg_eta,
+            "congestion": get_congestion(count)
+        })

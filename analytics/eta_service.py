@@ -13,28 +13,37 @@ PORTS = {
     "Tanger_Med": (35.890, -5.500)
 }
 
+from math import radians, cos, sin, asin, sqrt
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # km
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    return 2 * R * asin(sqrt(a))
 
 def predict_eta_for_boat(boat, current_lat, current_lon, current_speed_kn):
-    # 1. Chargement (Garder ta logique actuelle qui fonctionne pour l'objet)
-    model_path = os.path.join(settings.BASE_DIR, 'ais', 'eta_tanger_model.pkl')
-    # model = joblib.load(model_path)
-    prediction_minutes = MODEL.predict(input_df)[0]
-    if isinstance(model, dict): model = model['model']
 
-    # 2. Calculs de base
+    # 🔹 sécurité
+    if not boat or current_lat is None or current_lon is None:
+        return None, None
+
+    # 🔹 vitesse safe
+    speed = current_speed_kn if current_speed_kn and current_speed_kn > 0 else 1.0
+
+    # 🔹 ports (Tanger Ville / Med)
     d_ville = haversine_scalar(current_lat, current_lon, PORTS["Tanger_Ville"][0], PORTS["Tanger_Ville"][1])
     d_med = haversine_scalar(current_lat, current_lon, PORTS["Tanger_Med"][0], PORTS["Tanger_Med"][1])
     
     distance_km = min(d_ville, d_med)
     port_encoded = 0 if d_ville < d_med else 1
 
-    # 3. Extraction du temps (Features temporelles attendues)
+    # 🔹 temps
     now = datetime.now()
     hour = now.hour
-    day_of_week = now.weekday() # 0=Lundi, 6=Dimanche
+    day_of_week = now.weekday()
 
-    # 4. Préparer le DataFrame avec les noms EXACTS du modèle
-    # L'ORDRE DOIT ÊTRE CELUI DU MESSAGE D'ERREUR
+    # ✅ CRÉER input_df AVANT PREDICT
     input_df = pd.DataFrame([{
         'distance_to_closest_port': float(distance_km),
         'hour': int(hour),
@@ -43,15 +52,18 @@ def predict_eta_for_boat(boat, current_lat, current_lon, current_speed_kn):
         'length_m': float(boat.length) if boat.length else 150.0,
         'tonnage': float(boat.tonnage) if boat.tonnage else 500.0,
         'ship_type': int(boat.ship_type) if boat.ship_type else 30,
-        'current_speed': float(current_speed_kn) if current_speed_kn else 0.0
+        'current_speed': float(speed)
     }])
 
-    # 5. Réorganiser les colonnes pour être sûr de l'ordre
-    cols = ['distance_to_closest_port', 'hour', 'day_of_week', 'port_encoded', 
-            'length_m', 'tonnage', 'ship_type', 'current_speed']
+    cols = [
+        'distance_to_closest_port', 'hour', 'day_of_week',
+        'port_encoded', 'length_m', 'tonnage',
+        'ship_type', 'current_speed'
+    ]
+
     input_df = input_df[cols]
 
-    # 6. Prédiction
-    prediction_minutes = model.predict(input_df)[0]
-    
+    # ✅ UTILISER MODEL (pas model)
+    prediction_minutes = MODEL.predict(input_df)[0]
+
     return max(float(prediction_minutes), 1.0), port_encoded
