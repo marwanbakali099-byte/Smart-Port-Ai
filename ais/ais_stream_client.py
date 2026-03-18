@@ -2,60 +2,72 @@ import asyncio
 import websockets
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timezone # Utilisation de timezone pour la compatibilité
+
+# --- CONFIGURATION ---
+API_KEY = "257d535f8f35d805b11cbec507de61212ccd4508"
+URL_DJANGO = "http://127.0.0.1:8000/api/detections/"
 
 async def connecter_ais_stream():
-    cle_api = "ef62bc9224f99a5da8884ac8a80e315637eaccaa" 
-    url_wss = "wss://stream.aisstream.io/v0/stream"
-    url_django = "http://127.0.0.1:8000/api/detections/"
+    zone_tanger = [[34.0, -7.5], [37.0, -4.5]]
 
-    while True: # Boucle pour reconnecter automatiquement
+    while True:
         try:
-            async with websockets.connect(url_wss, ping_interval=20) as websocket:
-                # Format exact pour AISStream
-                subscribe_message = {
-                    "APIKey": cle_api,
-                    "BoundingBoxes": [[[[34.0, -7.0], [37.0, -4.0]]]] 
+            print(f"\n🔄 [{datetime.now().strftime('%H:%M:%S')}] Tentative de connexion à AISStream...")
+            
+            async with websockets.connect("wss://stream.aisstream.io/v0/stream") as websocket:
+                
+                subscribe_msg = {
+                    "APIKey": API_KEY,
+                    "BoundingBoxes": [zone_tanger],
+                    "FiltersShipType": [30, 60, 70, 80] 
                 }
 
-                await websocket.send(json.dumps(subscribe_message))
-                print("🚀 Abonnement envoyé. Attente des messages...")
+                await websocket.send(json.dumps(subscribe_msg))
+                print("✅ Connecté ! Écoute des navires (Pêche, Cargo, Tankers, Ferries)...")
 
                 async for message in websocket:
-                    try:
-                        donnees = json.loads(message)
-                        meta = donnees.get("MetaData", {})
-                        
-                        # AISStream envoie parfois la position dans 'Message' -> 'PositionReport'
-                        # ou directement dans 'MetaData'. On vérifie les deux.
-                        lat = meta.get("latitude")
-                        lon = meta.get("longitude")
-                        mmsi = meta.get("MMSI")
+                    data = json.loads(message)
+                    meta = data.get("MetaData", {})
+                    mmsi = meta.get("MMSI")
+                    lat = meta.get("latitude")
+                    lon = meta.get("longitude")
+                    ship_name = meta.get("ShipName", "Inconnu").strip()
+                    ship_type = meta.get("ShipType", 0)
 
-                        if lat and lon:
-                            payload = {
-                                "source": "ais",
-                                "mmsi": str(mmsi),
-                                "location": {
-                                    "type": "Point",
-                                    "coordinates": [float(lon), float(lat)]
-                                },
-                                "timestamp": datetime.utcnow().isoformat()
-                            }
-                            
-                            # Envoi à Django
-                            r = requests.post(url_django, json=payload, timeout=2)
-                            print(f"🚢 {meta.get('ShipName')} (MMSI: {mmsi}) -> Django: {r.status_code}")
+                    msg_type = data.get("MessageType")
+                    vitesse = 0.0
+                    
+                    if msg_type == "PositionReport":
+                        vitesse = data.get("Message", {}).get("PositionReport", {}).get("Sog", 0.0)
 
-                    except Exception as e:
-                        print(f"⚠️ Erreur message: {e}")
+                    if lat and lon and mmsi:
+                        payload = {
+                            "source": "ais",
+                            "mmsi": str(mmsi),
+                            "ship_type": int(ship_type) if ship_type else 30,
+                            "speed": float(vitesse),
+                            "location": {
+                                "type": "Point",
+                                "coordinates": [float(lon), float(lat)]
+                            },
+                            # Correction de l'erreur UTC ici :
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        }
 
-        except websockets.exceptions.ConnectionClosedError:
-            print("🔌 Serveur déconnecté. Reconnexion dans 5s...")
-            await asyncio.sleep(5)
-        except Exception as e:
-            print(f"💥 Erreur critique: {e}")
+                        try:
+                            res = requests.post(URL_DJANGO, json=payload, timeout=2)
+                            icon = "🚢" if ship_type and ship_type >= 70 else "🛶"
+                            print(f"{icon} {ship_name[:15]:<15} | MMSI: {mmsi} | SOG: {vitesse:>4} kn | Django: {res.status_code}")
+                        except Exception as e:
+                            print(f"❌ Erreur envoi Django: {e}")
+
+        except Exception as error:
+            print(f"🔌 Connexion interrompue ({error}). Reconnexion dans 5s...")
             await asyncio.sleep(5)
 
 if __name__ == "__main__":
-    asyncio.run(connecter_ais_stream())
+    try:
+        asyncio.run(connecter_ais_stream())
+    except KeyboardInterrupt:
+        print("\n🛑 Arrêt du client AIS.")

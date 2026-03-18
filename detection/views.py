@@ -11,15 +11,5 @@ class DetectionViewSet(viewsets.ModelViewSet):
     serializer_class = DetectionSerializer
 
     def perform_create(self, serializer):
-        # Crée automatiquement le bateau si MMSI fourni
-        mmsi = self.request.data.get("mmsi")
-        boat = None
-        if mmsi:
-            boat, _ = Boat.objects.get_or_create(mmsi=mmsi)
-
-        # Sauvegarde la détection
-        detection = serializer.save(boat=boat)
-
-        # Vérifie entry / exit
-        if boat:
-            check_entry_exit(boat, detection)
+        # On laisse le serializer gérer la création du boat via le MMSI
+        serializer.save()
