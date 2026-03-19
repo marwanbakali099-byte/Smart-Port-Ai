@@ -1,12 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
 from .port_service import get_avg_eta, get_boats_in_port, get_congestion
-from .services import compute_congestion
+from .services import calculate_real_fishing_hours, compute_congestion
 from bateaux.models import Boat
 from .eta_service import predict_eta_for_boat
-from rest_framework import status
-
+from django.shortcuts import get_object_or_404
+from ports.models import Port
+from .congestion_model import predictor
+from datetime import datetime
 
 class PortAnalyticsView(APIView):
 
@@ -69,4 +70,34 @@ class PortStatusView(APIView):
             "boats": [b.mmsi for b in boats],
             "avg_eta_minutes": avg_eta,
             "congestion": get_congestion(count)
+        })
+
+class PortCongestionIAView(APIView):
+    def get(self, request, port_id):
+        # 1. Récupérer le port (Ne pas oublier cette ligne !)
+        port = get_object_or_404(Port, id=port_id)
+
+        # 2. Préparer les données réelles
+        metrics = calculate_real_fishing_hours(port) 
+
+        # Extraction sécurisée
+        mmsi_present = metrics.get('boats_count', 0)
+        real_fishing_hours = metrics.get('fishing_hours', 0.0)
+        current_hour = metrics.get('hour', datetime.now().hour)
+
+        # 3. Lancer la prédiction IA
+        # Note: Assure-toi que ton predictor.predict renvoie bien (label, score)
+        prediction_label, raw_score = predictor.predict(
+            hours=current_hour, 
+            fishing_hours=real_fishing_hours, 
+            mmsi_present=mmsi_present
+        )
+
+        # 4. Réponse enrichie pour le Front-end
+        return Response({
+            "port_name": port.name,
+            "congestion_predictive_ia": prediction_label,
+            "confidence_score": round(raw_score, 4),
+            "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "details": metrics 
         })

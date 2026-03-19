@@ -10,8 +10,9 @@ URL_DJANGO = "http://127.0.0.1:8000/api/detections/"
 
 async def connecter_ais_stream():
     # zone_tanger = [[34.0, -7.5], [37.0, -4.5]]
-    zone_tanger = [[35.800, -5.900], [35.950, -5.300]]
-
+    # Nouvelle zone : Couvre de Larache au Cap Spartel et tout le détroit
+    # Zone immense (Espagne + Maroc + Détroit)
+    zone_test = [[34.000, -8.000], [37.000, -3.000]]
     while True:
         try:
             print(f"\n🔄 [{datetime.now().strftime('%H:%M:%S')}] Tentative de connexion à AISStream...")
@@ -20,7 +21,7 @@ async def connecter_ais_stream():
                 
                 subscribe_msg = {
                     "APIKey": API_KEY,
-                    "BoundingBoxes": [zone_tanger],
+                    "BoundingBoxes": [zone_test],
                     "FiltersShipType": [30, 60, 70, 80] 
                 }
 
