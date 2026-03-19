@@ -22,7 +22,7 @@ async def connecter_ais_stream():
                 subscribe_msg = {
                     "APIKey": API_KEY,
                     "BoundingBoxes": [zone_test],
-                    "FiltersShipType": [30, 60, 70, 80] 
+                    # "FiltersShipType": [30, 60, 70, 80] 
                 }
 
                 await websocket.send(json.dumps(subscribe_msg))

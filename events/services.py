@@ -1,24 +1,55 @@
 from ports.models import Port
 from .models import PortEvent
-from ports.utils import get_port_from_position
+from django.utils import timezone
 
-def check_entry_exit(boat, new_detection):
-    # On récupère le port où se trouve le bateau MAINTENANT
-    current_port = get_port_from_position(new_detection.location.y, new_detection.location.x)
+def check_entry_exit(detection):
+    """
+    Analyse si une détection constitue une entrée ou une sortie.
+    Correction : On utilise 'boat' au lieu de 'mmsi' pour le filtrage PortEvent.
+    """
+    boat = detection.boat # On récupère l'objet Boat lié à la détection
+    point = detection.location
     
-    # On récupère sa position PRÉCÉDENTE
-    last_detection = boat.positions.exclude(id=new_detection.id).order_by('-timestamp').first()
-    if not last_detection: return
-    
-    # On regarde si avant il était dans un port
-    previous_port = get_port_from_position(last_detection.location.y, last_detection.location.x)
+    if not boat:
+        print("⚠️ Détection sans bateau associé. Abandon.")
+        return
 
-    # LOGIQUE D'ENTRÉE
-    if not previous_port and current_port:
-        PortEvent.objects.create(boat=boat, port=current_port, event_type="entry", timestamp=new_detection.timestamp)
-        print(f"✅ {boat.mmsi} est entré à {current_port.name}")
+    for port in Port.objects.all():
+        is_inside = port.boundary.contains(point)
+        
+        # Correction ici : on filtre par 'boat' et non 'mmsi'
+        last_event = PortEvent.objects.filter(
+            port=port, 
+            boat=boat
+        ).order_by('-timestamp').first()
 
-    # LOGIQUE DE SORTIE
-    elif previous_port and not current_port:
-        PortEvent.objects.create(boat=boat, port=previous_port, event_type="exit", timestamp=new_detection.timestamp)
-        print(f"🚪 {boat.mmsi} a quitté {previous_port.name}")
+        # CAS 1 : ENTRÉE
+        if is_inside and (not last_event or last_event.event_type == 'exit'):
+            PortEvent.objects.create(
+                port=port,
+                boat=boat, # Utilisation du champ correct
+                event_type='entry',
+                timestamp=detection.timestamp,
+                processed=False
+            )
+            print(f"📥 ENTRÉE : {boat.mmsi} dans {port.name}")
+
+        # CAS 2 : SORTIE
+        elif not is_inside and last_event and last_event.event_type == 'entry':
+            # Clôture de l'entrée
+            PortEvent.objects.filter(
+                port=port, 
+                boat=boat, 
+                event_type='entry', 
+                processed=False
+            ).update(processed=True)
+            
+            # Création de la sortie
+            PortEvent.objects.create(
+                port=port,
+                boat=boat,
+                event_type='exit',
+                timestamp=detection.timestamp,
+                processed=True
+            )
+            print(f"📤 SORTIE : {boat.mmsi} quitte {port.name}")
