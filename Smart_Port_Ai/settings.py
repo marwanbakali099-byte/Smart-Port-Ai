@@ -14,6 +14,8 @@ from pathlib import Path
 
 import os
 
+
+
 OSGEO4W_ROOT = r'C:\Users\ACER\AppData\Local\Programs\OSGeo4W'
 
 os.environ['PATH'] = os.path.join(OSGEO4W_ROOT, 'bin') + os.pathsep + os.environ['PATH']
@@ -30,6 +32,9 @@ GEOS_LIBRARY_PATH = os.path.join(OSGEO4W_ROOT, 'bin', 'geos_c.dll')
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Ajoute ces lignes à la fin
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -63,11 +68,13 @@ INSTALLED_APPS = [
     'analytics.apps.AnalyticsConfig',
     'dashbord.apps.DashbordConfig',
     'events.apps.EventsConfig',
-    
+    'maritime_video.apps.MaritimeVideoConfig',
+    'corsheaders',
     
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,7 +83,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
+CORS_ALLOW_ALL_ORIGINS = True
 ROOT_URLCONF = 'Smart_Port_Ai.urls'
 
 TEMPLATES = [
