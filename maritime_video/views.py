@@ -36,59 +36,71 @@ class LivePortStreamView(APIView):
             stream_url = url
 
         cap = cv2.VideoCapture(stream_url)
-        # On utilise time.time() du module 'time' importé en haut
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # Reduce buffer size to prevent stale frames
         last_db_save = time.time() 
+        frame_count = 0
 
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
-                break
+        try:
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    break
+                
+                frame_count += 1
+                # Drop frames to maintain real-time sync (process 1 out of every 3 frames)
+                if frame_count % 3 != 0:
+                    continue
 
-            now = datetime.now()
-            # Inférence YOLO avec Tracking (Classe 8 = bateau)
-            results = video_model.track(frame, classes=[8], persist=True, verbose=False)
+                # Resize image to significantly speed up YOLO inference
+                frame = cv2.resize(frame, (640, 360))
 
-            if results[0].boxes.id is not None:
-                ids = results[0].boxes.id.cpu().numpy().astype(int)
-                boxes = results[0].boxes.xyxy.cpu().numpy()
-                confs = results[0].boxes.conf.cpu().numpy()
+                now = datetime.now()
+                # Inférence YOLO avec Tracking (Classe 8 = bateau)
+                results = video_model.track(frame, classes=[8], persist=True, verbose=False)
 
-                for id_boat, box, conf in zip(ids, boxes, confs):
-                    x1, y1, x2, y2 = box
-                    cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2)
+                if results[0].boxes.id is not None:
+                    ids = results[0].boxes.id.cpu().numpy().astype(int)
+                    boxes = results[0].boxes.xyxy.cpu().numpy()
+                    confs = results[0].boxes.conf.cpu().numpy()
 
-                    # --- CALCUL DE LA VITESSE ---
-                    speed = 0
-                    if id_boat in track_history:
-                        prev_x, prev_y, prev_t = track_history[id_boat]
-                        dt = (now - prev_t).total_seconds()
-                        if dt > 0:
-                            dist = np.sqrt((cx - prev_x)**2 + (cy - prev_y)**2)
-                            speed = dist / dt # pixels par seconde
-                    
-                    track_history[id_boat] = (cx, cy, now)
+                    for id_boat, box, conf in zip(ids, boxes, confs):
+                        x1, y1, x2, y2 = box
+                        cx, cy = int((x1 + x2) / 2), int((y1 + y2) / 2)
 
-                    # --- SAUVEGARDE EN BASE DE DONNÉES (SQL) ---
-                    # On enregistre une ligne toutes les 3 secondes pour ne pas surcharger la DB
-                    if time.time() - last_db_save > 3:
-                        BoatTraffic.objects.create(
-                            boat_id=int(id_boat),
-                            speed=float(speed),
-                            confidence=float(conf)
-                        )
-                        last_db_save = time.time()
+                        # --- CALCUL DE LA VITESSE ---
+                        speed = 0
+                        if id_boat in track_history:
+                            prev_x, prev_y, prev_t = track_history[id_boat]
+                            dt = (now - prev_t).total_seconds()
+                            if dt > 0:
+                                dist = np.sqrt((cx - prev_x)**2 + (cy - prev_y)**2)
+                                speed = dist / dt # pixels par seconde
+                        
+                        track_history[id_boat] = (cx, cy, now)
 
-                    # --- DESSIN SUR L'IMAGE ---
-                    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                    cv2.putText(frame, f"ID:{id_boat} Spd:{speed:.1f}", (int(x1), int(y1)-10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        # --- SAUVEGARDE EN BASE DE DONNÉES (SQL) ---
+                        # On enregistre une ligne toutes les 3 secondes pour ne pas surcharger la DB
+                        if time.time() - last_db_save > 3:
+                            BoatTraffic.objects.create(
+                                boat_id=int(id_boat),
+                                speed=float(speed),
+                                confidence=float(conf)
+                            )
+                            last_db_save = time.time()
 
-            # Encodage de l'image pour le flux HTTP
-            _, buffer = cv2.imencode('.jpg', frame)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                        # --- DESSIN SUR L'IMAGE ---
+                        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                        cv2.putText(frame, f"ID:{id_boat} Spd:{speed:.1f}", (int(x1), int(y1)-10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        cap.release()
+                # Encodage de l'image pour le flux HTTP avec qualité optimisée
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        except Exception as e:
+            print(f"CCTV Stream Error: {e}")
+        finally:
+            cap.release()
 
 class BoatStatsView(APIView):
     """
