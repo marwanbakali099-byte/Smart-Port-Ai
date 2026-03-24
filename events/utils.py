@@ -14,7 +14,8 @@ def handle_port_event(boat, lat, lon):
             PortEvent.objects.create(
                 boat=boat,
                 port=port,
-                event_type="entry"
+                event_type="entry",
+                timestamp=now()
             )
             print(f"🟢 ENTRY → {port.name}")
 
@@ -23,6 +24,7 @@ def handle_port_event(boat, lat, lon):
             PortEvent.objects.create(
                 boat=boat,
                 port=last_event.port,
-                event_type="exit"
+                event_type="exit",
+                timestamp=now()
             )
             print(f"🔴 EXIT → {last_event.port.name}")
