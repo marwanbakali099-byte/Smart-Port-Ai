@@ -23,6 +23,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/", include("detection.urls")),
     path("api/", include("analytics.urls")),
+    path("api/", include("events.urls")),
+    path("api/", include("bateaux.urls")),
+    path("api/", include("ports.urls")),
     path('api/satellite/', include('satellite.urls')),
     path('api/video/', include('maritime_video.urls')),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
