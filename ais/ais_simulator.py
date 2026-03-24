@@ -59,12 +59,20 @@ vessels = [
     MockVessel("244000007", "FISHING BOAT 2", 30, 35.82, -5.85, 4.5, 10),
     MockVessel("244000008", "TANKER GIB 2", 80, 35.88, -5.65, 11.2, 85),
     MockVessel("244000009", "YACHT LUX 2", 37, 35.78, -5.80, 22.0, 15),
-    MockVessel("244000010", "FAST FERRY", 60, 35.85, -5.60, 25.0, 300),
+    MockVessel("244000010", "FAST SPIRIT", 40, 35.85, -5.60, 35.0, 300),  # Modifié: Type 40 (Haute vitesse)
     MockVessel("244000011", "BULK CARRIER A", 70, 35.91, -5.52, 10.5, 250),
-    MockVessel("244000012", "PATROL BOAT", 90, 35.83, -5.78, 28.0, 60),
+    MockVessel("244000012", "PATROL BOAT", 90, 35.83, -5.78, 28.0, 60),     # Type 90 (Autre)
     MockVessel("244000013", "LNG TANKER", 80, 35.87, -5.58, 13.0, 110),
     MockVessel("244000014", "SAILING YACHT", 36, 35.77, -5.83, 6.0, 330),
 ]
+
+def get_vessel_icon(ship_type):
+    if 30 <= ship_type < 40: return "🎣" # Pêche (30)
+    if 40 <= ship_type < 50: return "🚤" # Haute vitesse (40)
+    if 60 <= ship_type < 70: return "⛴️" # Passager (60)
+    if 70 <= ship_type < 80: return "🚢" # Cargo (70)
+    if 80 <= ship_type < 90: return "🛢️" # Tanker (80)
+    return "🛳️" # Autre
 
 def run_simulator():
     print(f"🚀 Démarrage du simulateur AIS ({len(vessels)} navires)")
@@ -94,13 +102,8 @@ def run_simulator():
                 try:
                     res = requests.post(URL_DJANGO, json=payload, timeout=2)
                     
-                    # Choix de l'icône basé sur le type de navire (identique au client réel)
-                    if vessel.ship_type >= 70:
-                        icon = "🚢"
-                    elif vessel.ship_type == 30:
-                        icon = "🎣"
-                    else:
-                        icon = "🛳️"
+                    # Choix de l'icône basé sur la classification standard (mise à jour)
+                    icon = get_vessel_icon(vessel.ship_type)
                         
                     status = "✅" if res.status_code in (200, 201) else f"❌ HTTP {res.status_code}: {res.text[:150]}"
                     print(f"{icon} {vessel.name[:15]:<15} | MMSI: {vessel.mmsi} | Cap: {int(vessel.heading):03d}° | {vessel.speed:>4.1f} kn | {status}")

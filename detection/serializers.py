@@ -13,6 +13,13 @@ class DetectionSerializer(GeoFeatureModelSerializer):
         fields = ('id', 'source', 'location', 'timestamp', 'mmsi', 'speed', 'eta_minutes', 'ship_type')
         read_only_fields = ('eta_minutes',)
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # Inject the boat's ship_type into the GeoJSON properties for the frontend map renderer
+        if instance.boat and 'properties' in ret:
+            ret['properties']['ship_type'] = instance.boat.ship_type
+        return ret
+
     def create(self, validated_data):
         mmsi = validated_data.get('mmsi')
         ship_type = validated_data.pop('ship_type', 30)
